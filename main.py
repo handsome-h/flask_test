@@ -378,6 +378,62 @@ app.register_blueprint(simple_page)
 
 
 
+# ======================================== 中间件 ================================
+# 请求执行之前的顺序是:谁先注册，谁就先执行
+# 注意：如果before_request中有返回值，那后面的before就不会执行，且响应函数也不会执行
+#         但是after_request任然会全部执行（这里与django不同，django是同级返回）
+@app.before_request
+def before_req1(*args, **kwargs):
+    # 如果是login,可以通过白名单
+    if request.path == '/login':
+        return None
+    user = session.get('user_info')
+    if user:
+        return None
+    return redirect("/login")
+    print("请求之前")
+
+@app.before_request
+def before_req2(*args, **kwargs):
+    # 如果是login,可以通过白名单
+    if request.path == '/login':
+        return None
+    user = session.get('user_info')
+    if user:
+        return None
+    return redirect("/login")
+    print("请求之前")
+
+# 响应函数之后执行，相当于django的process_response,在响应函数之后执行的。after_request的执行顺序是：先注册，后执行
+#after_request必须接受一个参数，参数为response对象，且必须返回
+@app.after_request
+def process_response1(response):
+    # 返回值存在
+    print("process_response1走了")
+    return response
+
+
+
+
+# 在执行app.run()方法的时候，最终执行run_simple，最后执行app()，也就是执行app.__call__方法。
+# 在app.__call__里面，执行的是self.wsgi_app()，那么我们希望在执行它本身的wsgi_app之前或者之后做点事情。这就是中间件的应用
+# 中间件类
+class MyMiddleware:
+    def __init__(self,wsgi_app):
+        self.wsgi_app = wsgi_app
+    def __call__(self, environ, start_response):
+        print('我是开始之前')
+        res = self.wsgi_app(environ, start_response)
+        print('我是所有之后')
+        return res
+
+# app.wsgi_app = MyMiddleware(app.wsgi_app)
+# app.run()
+
+
+
+
+
 
 if __name__ == '__main__':
     # Flask类的run()方法在本地开发服务器上运行应用程序。
